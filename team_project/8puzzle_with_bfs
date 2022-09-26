@@ -1,0 +1,126 @@
+from queue import PriorityQueue
+from random import randint
+
+class State:
+    goal: str = ''
+
+    def __init__(self, board: str, moves: int = 0):
+        self.board = board
+        self.moves = moves
+
+    def __lt__(self, other):
+        """비교 연산자 < 오버로딩. 우선순위큐를 사용하기 위해 필요함"""
+        return self.f() < other.f()
+
+    def f(self):
+        """상태함수"""
+        return self.g() + self.h()
+
+    def g(self):
+        """지금까지 경로 비용"""
+        return self.moves
+
+    def h(self):
+        """휴리스틱"""
+        dist = 0
+        size = 3
+        for n in range(9):
+            piece = self.goal[n]
+            goal_x = n // size
+            goal_y = n - goal_x * size
+            board_x = self.board.index(piece) // size
+            board_y = self.board.index(piece) - board_x * size
+            dist += abs(goal_x - board_x) + abs(goal_y - board_y)#거리절대값을 휴리스틱으로둠
+        return dist
+
+
+def bfs(start:State,goal:str) -> dict:
+    que = PriorityQueue()
+    que.put(start)
+    marked = {start.board: None}
+    while que and (current := que.get()).board != goal:
+        for state in expand(current):
+            if state.board not in marked:
+                marked[state.board] = current.board
+                que.put(state)
+                
+    return marked
+
+
+def exchange(state: State, prev_pos: int, new_pos: int) -> State:
+    new_board = list(state.board)
+    new_board[prev_pos], new_board[new_pos] = new_board[new_pos], new_board[prev_pos]
+    return State(''.join(new_board), state.moves + 1)
+
+
+def expand(state: State) -> list:
+    result = []
+    position = state.board.index('0')
+    if position not in (0, 1, 2):  # UP
+        result.append(exchange(state, position, position - 3))
+    if position not in (0, 3, 6):  # LEFT
+        result.append(exchange(state, position, position - 1))
+    if position not in (2, 5, 8):  # RIGHT
+        result.append(exchange(state, position, position + 1))
+    if position not in (6, 7, 8):  # DOWN
+        result.append(exchange(state, position, position + 3))
+    return result
+
+
+def board_print(board: str):
+    print(' '.join(board[:3]))
+    print(' '.join(board[3:6]))
+    print(' '.join(board[6:]))
+    print('-----')
+
+
+def randomize_start() -> str:
+    board = []
+    while not is_solvable(board):
+        board = []
+        while len(board) != 9:
+            temp = str(randint(0, 8))
+            if temp not in board:
+                board.append(temp)
+    return ''.join(board)
+
+
+def is_solvable(board: list) -> bool:
+    if not board:
+        return False
+    inversion = 0
+    for i in range(len(board) - 1):
+        if board[i] == '0':
+            continue
+        for j in range(i + 1, len(board)):
+            if board[j] == '0':
+                continue
+            if board[i] > board[j]:
+                inversion += 1
+    return inversion % 2 == 0
+
+
+def print_path(start: str, goal: str, marked):
+    path = []
+    node = goal
+    while node != start:
+        path.append(node)
+        node = marked[node]
+    path.append(start)
+    for each in path[::-1]:
+        board_print(each)
+
+        
+def main():
+    # start = State('123506784')
+    start = State(randomize_start())
+    State.goal = '123456780'
+    marked = bfs(start, State.goal)
+    print_path(start.board, State.goal, marked)
+    print("시작 보드는 ")
+    board_print(start.board)
+    print(len(marked))
+
+
+if __name__ == '__main__':
+    main()
